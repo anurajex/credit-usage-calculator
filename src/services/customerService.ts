@@ -32,7 +32,7 @@ export const fetchUsageData = async (
   
   try {
     const response = await fetch(
-      `https://api.ycloud.com/v2/billing/usageDetails?filter.startDate=${startDate}&filter.endDate=${endDate}&includeTotal=True&Limit=30`,
+      `https://api.ycloud.com/v2/billing/usageDetails?filter.startDate=${startDate}&filter.endDate=${endDate}&includeTotal=True&Limit=31`,
       {
         method: 'GET',
         headers: {
@@ -47,15 +47,39 @@ export const fetchUsageData = async (
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data: UsageApiResponse = await response.json();
+    const data = await response.json();
+    console.log('Raw API response:', data);
     
-    // Transform API response to our internal format
-    const usageDetails = data.usageDetails?.map(item => ({
-      date: item.date,
-      creditType: item.productName,
-      quantity: item.quantity,
-      cost: item.cost
-    })) || [];
+    // Parse the YCloud API response structure
+    const usageDetails = [];
+    let totalQuantity = 0;
+    let totalCost = 0;
+
+    if (data.items && Array.isArray(data.items)) {
+      for (const item of data.items) {
+        const date = item.date;
+        
+        if (item.costItems && Array.isArray(item.costItems)) {
+          for (const costItem of item.costItems) {
+            // Create a credit type based on channel and conversation type
+            const creditType = `${item.channel || 'WhatsApp'} - ${costItem.conversationOriginType || 'conversation'}`;
+            
+            usageDetails.push({
+              date: date,
+              creditType: creditType,
+              quantity: costItem.quantity || 0,
+              cost: costItem.cost || 0
+            });
+
+            totalQuantity += costItem.quantity || 0;
+            totalCost += costItem.cost || 0;
+          }
+        }
+      }
+    }
+
+    console.log('Parsed usage details:', usageDetails);
+    console.log('Total quantity:', totalQuantity, 'Total cost:', totalCost);
 
     // Cache the usage data in Supabase
     if (usageDetails.length > 0) {
@@ -82,14 +106,16 @@ export const fetchUsageData = async (
 
       if (insertError) {
         console.error('Error caching usage data:', insertError);
+      } else {
+        console.log('Successfully cached usage data');
       }
     }
 
     return {
       data: usageDetails,
       total: {
-        totalMessages: data.totalUsage?.totalQuantity || usageDetails.reduce((sum, item) => sum + item.quantity, 0),
-        totalCost: data.totalUsage?.totalCost || usageDetails.reduce((sum, item) => sum + item.cost, 0)
+        totalMessages: totalQuantity,
+        totalCost: totalCost
       }
     };
   } catch (error) {
