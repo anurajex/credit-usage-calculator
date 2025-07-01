@@ -1,24 +1,26 @@
 
 import { Customer, UsageResponse, UsageApiResponse } from '@/types/customer';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock customer data
-export const customers: Customer[] = [
-  {
-    id: "cust_1",
-    name: "Customer A",
-    apiKey: "715fdae7d22109a89947d9855883de78",
-    managedAccountId: "677829c878931b1513d59975"
-  },
-  {
-    id: "cust_2",
-    name: "Customer B",
-    apiKey: "demo_key_b",
-    managedAccountId: "demo_mgmt_b"
+export const getCustomers = async (): Promise<Customer[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map(customer => ({
+      id: customer.id,
+      name: customer.name,
+      apiKey: customer.api_key,
+      managedAccountId: customer.managed_account_id
+    }));
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    return [];
   }
-];
-
-export const getCustomers = (): Customer[] => {
-  return customers;
 };
 
 export const fetchUsageData = async (
@@ -55,6 +57,34 @@ export const fetchUsageData = async (
       cost: item.cost
     })) || [];
 
+    // Cache the usage data in Supabase
+    if (usageDetails.length > 0) {
+      const usageDataToInsert = usageDetails.map(item => ({
+        customer_id: customer.id,
+        date: item.date,
+        credit_type: item.creditType,
+        quantity: item.quantity,
+        cost: item.cost
+      }));
+
+      // Delete existing data for this customer and date range first
+      await supabase
+        .from('usage_data')
+        .delete()
+        .eq('customer_id', customer.id)
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      // Insert new data
+      const { error: insertError } = await supabase
+        .from('usage_data')
+        .insert(usageDataToInsert);
+
+      if (insertError) {
+        console.error('Error caching usage data:', insertError);
+      }
+    }
+
     return {
       data: usageDetails,
       total: {
@@ -65,7 +95,37 @@ export const fetchUsageData = async (
   } catch (error) {
     console.error('Error fetching usage data:', error);
     
-    // Return mock data for demo purposes
+    // Try to get cached data from Supabase as fallback
+    try {
+      const { data: cachedData, error: cacheError } = await supabase
+        .from('usage_data')
+        .select('*')
+        .eq('customer_id', customer.id)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true });
+
+      if (!cacheError && cachedData && cachedData.length > 0) {
+        const usageDetails = cachedData.map(item => ({
+          date: item.date,
+          creditType: item.credit_type,
+          quantity: item.quantity,
+          cost: item.cost
+        }));
+
+        return {
+          data: usageDetails,
+          total: {
+            totalMessages: usageDetails.reduce((sum, item) => sum + item.quantity, 0),
+            totalCost: usageDetails.reduce((sum, item) => sum + item.cost, 0)
+          }
+        };
+      }
+    } catch (cacheError) {
+      console.error('Error fetching cached data:', cacheError);
+    }
+    
+    // Return mock data as final fallback
     const mockData = [
       { date: startDate, creditType: 'SMS', quantity: 150, cost: 7.50 },
       { date: startDate, creditType: 'Voice Call', quantity: 45, cost: 22.50 },
