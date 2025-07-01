@@ -1,17 +1,16 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, LogOut } from "lucide-react";
+import { Calendar, Search, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getCustomers, fetchUsageData, saveLastSelection, getLastSelection } from "@/services/customerService";
 import { Customer, UsageDetail } from "@/types/customer";
 import { UsageTable } from "@/components/UsageTable";
 import { UsageSummary } from "@/components/UsageSummary";
 import { CustomerManagement } from "@/components/CustomerManagement";
-import { DatePicker } from "@/components/DatePicker";
 import { useAuth } from "@/hooks/useAuth";
 
 const Dashboard = () => {
@@ -19,18 +18,18 @@ const Dashboard = () => {
   const { user, signOut } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [startDate, setStartDate] = useState<Date | undefined>();
-  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [usageData, setUsageData] = useState<UsageDetail[]>([]);
   const [totalMessages, setTotalMessages] = useState<number>(0);
   const [totalCost, setTotalCost] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [showCustomerManagement, setShowCustomerManagement] = useState<boolean>(false);
 
-  // Load customers and set default dates on component mount
+  // Load customers and last selection on component mount
   useEffect(() => {
     loadCustomers();
-    setDefaultDates();
+    loadLastSelection();
   }, []);
 
   const loadCustomers = async () => {
@@ -38,13 +37,24 @@ const Dashboard = () => {
     setCustomers(customerList);
   };
 
-  const setDefaultDates = () => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    
-    setStartDate(firstDay);
-    setEndDate(lastDay);
+  const loadLastSelection = () => {
+    const lastSelection = getLastSelection();
+    if (lastSelection) {
+      const customer = customers.find(c => c.id === lastSelection.customerId);
+      if (customer) {
+        setSelectedCustomer(customer);
+        setStartDate(lastSelection.startDate);
+        setEndDate(lastSelection.endDate);
+      }
+    } else {
+      // Set default dates to current month
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      setStartDate(firstDay.toISOString().split('T')[0]);
+      setEndDate(lastDay.toISOString().split('T')[0]);
+    }
   };
 
   const handleCustomersChange = (newCustomers: Customer[]) => {
@@ -82,7 +92,7 @@ const Dashboard = () => {
       return;
     }
 
-    if (startDate > endDate) {
+    if (new Date(startDate) > new Date(endDate)) {
       toast({
         title: "Invalid Date Range",
         description: "Start date must be before end date.",
@@ -95,16 +105,13 @@ const Dashboard = () => {
     console.log('Fetching usage data...');
 
     try {
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
-      
-      const response = await fetchUsageData(selectedCustomer, startDateStr, endDateStr);
+      const response = await fetchUsageData(selectedCustomer, startDate, endDate);
       setUsageData(response.data);
       setTotalMessages(response.total.totalMessages);
       setTotalCost(response.total.totalCost);
 
       // Save selection to localStorage
-      saveLastSelection(selectedCustomer.id, startDateStr, endDateStr);
+      saveLastSelection(selectedCustomer.id, startDate, endDate);
 
       toast({
         title: "Success",
@@ -139,7 +146,7 @@ const Dashboard = () => {
         row.date,
         row.creditType,
         row.quantity,
-        row.cost.toFixed(4)
+        row.cost.toFixed(2)
       ].join(','))
     ].join('\n');
 
@@ -147,7 +154,7 @@ const Dashboard = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `usage-report-${selectedCustomer?.name}-${startDate?.toISOString().split('T')[0]}-${endDate?.toISOString().split('T')[0]}.csv`;
+    a.download = `usage-report-${selectedCustomer?.name}-${startDate}-${endDate}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -191,7 +198,7 @@ const Dashboard = () => {
         <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5 text-green-600" />
+              <Calendar className="h-5 w-5 text-green-600" />
               Usage Query
             </CardTitle>
           </CardHeader>
@@ -217,21 +224,31 @@ const Dashboard = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Start Date</Label>
-                <DatePicker
-                  date={startDate}
-                  onDateChange={setStartDate}
-                  placeholder="Select start date"
-                />
+                <Label htmlFor="start-date">Start Date</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label>End Date</Label>
-                <DatePicker
-                  date={endDate}
-                  onDateChange={setEndDate}
-                  placeholder="Select end date"
-                />
+                <Label htmlFor="end-date">End Date</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
 
               <Button 
