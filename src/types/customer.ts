@@ -2,6 +2,8 @@
 export interface Customer {
   id: string;
   name: string;
+  customerNumber: string;
+  plan: 'enterprise' | 'growth';
   apiKey: string;
   managedAccountId: string;
 }

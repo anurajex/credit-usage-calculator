@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types/customer";
@@ -23,6 +24,8 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
     name: '',
+    customerNumber: '',
+    plan: 'enterprise' as 'enterprise' | 'growth',
     apiKey: '',
     managedAccountId: ''
   });
@@ -43,6 +46,8 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
       const formattedCustomers = data.map(customer => ({
         id: customer.id,
         name: customer.name,
+        customerNumber: customer.customer_number || '',
+        plan: customer.plan || 'enterprise',
         apiKey: customer.api_key,
         managedAccountId: customer.managed_account_id
       }));
@@ -68,6 +73,8 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
           .from('customers')
           .update({
             name: formData.name,
+            customer_number: formData.customerNumber,
+            plan: formData.plan,
             api_key: formData.apiKey,
             managed_account_id: formData.managedAccountId,
             updated_at: new Date().toISOString()
@@ -85,6 +92,8 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
           .from('customers')
           .insert({
             name: formData.name,
+            customer_number: formData.customerNumber,
+            plan: formData.plan,
             api_key: formData.apiKey,
             managed_account_id: formData.managedAccountId,
             user_id: (await supabase.auth.getUser()).data.user?.id
@@ -100,7 +109,7 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
 
       setDialogOpen(false);
       setEditingCustomer(null);
-      setFormData({ name: '', apiKey: '', managedAccountId: '' });
+      setFormData({ name: '', customerNumber: '', plan: 'enterprise', apiKey: '', managedAccountId: '' });
       fetchCustomers();
     } catch (error: any) {
       toast({
@@ -117,6 +126,8 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
     setEditingCustomer(customer);
     setFormData({
       name: customer.name,
+      customerNumber: customer.customerNumber,
+      plan: customer.plan,
       apiKey: customer.apiKey,
       managedAccountId: customer.managedAccountId
     });
@@ -151,8 +162,12 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
 
   const openNewCustomerDialog = () => {
     setEditingCustomer(null);
-    setFormData({ name: '', apiKey: '', managedAccountId: '' });
+    setFormData({ name: '', customerNumber: '', plan: 'enterprise', apiKey: '', managedAccountId: '' });
     setDialogOpen(true);
+  };
+
+  const getPlanDisplay = (plan: string) => {
+    return plan === 'enterprise' ? 'Enterprise (USD)' : 'Growth (USD+5%)';
   };
 
   return (
@@ -169,7 +184,7 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
               Add Customer
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>
                 {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
@@ -184,6 +199,27 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customerNumber">Customer Number</Label>
+                <Input
+                  id="customerNumber"
+                  value={formData.customerNumber}
+                  onChange={(e) => setFormData({ ...formData, customerNumber: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="plan">Customer Plan</Label>
+                <Select value={formData.plan} onValueChange={(value: 'enterprise' | 'growth') => setFormData({ ...formData, plan: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="enterprise">Enterprise (USD)</SelectItem>
+                    <SelectItem value="growth">Growth (USD+5%)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="apiKey">API Key</Label>
@@ -221,6 +257,8 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Customer #</TableHead>
+                  <TableHead>Plan</TableHead>
                   <TableHead>API Key</TableHead>
                   <TableHead>Managed Account ID</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -230,6 +268,8 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
                 {customers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell>{customer.customerNumber}</TableCell>
+                    <TableCell>{getPlanDisplay(customer.plan)}</TableCell>
                     <TableCell className="font-mono text-sm">{customer.apiKey.substring(0, 20)}...</TableCell>
                     <TableCell className="font-mono text-sm">{customer.managedAccountId}</TableCell>
                     <TableCell className="text-right">

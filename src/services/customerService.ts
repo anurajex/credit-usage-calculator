@@ -14,6 +14,8 @@ export const getCustomers = async (): Promise<Customer[]> => {
     return data.map(customer => ({
       id: customer.id,
       name: customer.name,
+      customerNumber: customer.customer_number || '',
+      plan: customer.plan || 'enterprise',
       apiKey: customer.api_key,
       managedAccountId: customer.managed_account_id
     }));

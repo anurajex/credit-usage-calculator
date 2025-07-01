@@ -1,9 +1,11 @@
 
+import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UsageDetail } from "@/types/customer";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MessageTypeFilter } from "./MessageTypeFilter";
 
 interface UsageTableProps {
   data: UsageDetail[];
@@ -11,6 +13,17 @@ interface UsageTableProps {
 }
 
 export const UsageTable = ({ data, onExportCSV }: UsageTableProps) => {
+  const [messageTypeFilters, setMessageTypeFilters] = useState<string[]>([]);
+
+  const filteredData = useMemo(() => {
+    if (messageTypeFilters.length === 0) return data;
+    
+    return data.filter(item => {
+      const creditType = item.creditType.toLowerCase();
+      return messageTypeFilters.some(filter => creditType.includes(filter));
+    });
+  }, [data, messageTypeFilters]);
+
   if (data.length === 0) {
     return (
       <Card>
@@ -22,38 +35,42 @@ export const UsageTable = ({ data, onExportCSV }: UsageTableProps) => {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Usage Details</CardTitle>
-        <Button variant="outline" size="sm" onClick={onExportCSV} className="gap-2">
-          <Download className="h-4 w-4" />
-          Export CSV
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Credit Type</TableHead>
-                <TableHead className="text-right">Quantity</TableHead>
-                <TableHead className="text-right">Cost ($)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
-                  <TableCell className="font-medium">{item.creditType}</TableCell>
-                  <TableCell className="text-right">{item.quantity.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">${item.cost.toFixed(2)}</TableCell>
+    <div className="space-y-4">
+      <MessageTypeFilter onFilterChange={setMessageTypeFilters} />
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Usage Details</CardTitle>
+          <Button variant="outline" size="sm" onClick={onExportCSV} className="gap-2">
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Credit Type</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead className="text-right">Cost ($)</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {filteredData.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{new Date(item.date).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-medium">{item.creditType}</TableCell>
+                    <TableCell className="text-right">{item.quantity.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">${item.cost.toFixed(4)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
