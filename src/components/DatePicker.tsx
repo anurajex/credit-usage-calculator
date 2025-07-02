@@ -1,10 +1,8 @@
 
-import { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import React from 'react';
 import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -12,41 +10,48 @@ import { cn } from "@/lib/utils";
 interface DatePickerProps {
   label: string;
   value: string;
-  onChange: (date: string) => void;
+  onChange: (value: string) => void;
   placeholder?: string;
 }
 
 export const DatePicker = ({ label, value, onChange, placeholder }: DatePickerProps) => {
-  const [open, setOpen] = useState(false);
-  const selectedDate = value ? new Date(value) : undefined;
+  const [open, setOpen] = React.useState(false);
+
+  // Convert string date to Date object, handling timezone properly
+  const dateValue = value ? new Date(value + 'T00:00:00') : undefined;
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      onChange(date.toISOString().split('T')[0]);
-      setOpen(false);
+      // Format the date as YYYY-MM-DD to avoid timezone issues
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+      onChange(formattedDate);
     }
+    setOpen(false);
   };
 
   return (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <label className="text-sm font-medium text-gray-700">{label}</label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             className={cn(
               "w-full justify-start text-left font-normal",
-              !selectedDate && "text-muted-foreground"
+              !value && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {selectedDate ? format(selectedDate, "PPP") : placeholder || "Pick a date"}
+            {value ? format(dateValue!, "PPP") : <span>{placeholder}</span>}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             mode="single"
-            selected={selectedDate}
+            selected={dateValue}
             onSelect={handleDateSelect}
             initialFocus
           />

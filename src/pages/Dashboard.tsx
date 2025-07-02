@@ -13,6 +13,7 @@ import { CustomerManagement } from "@/components/CustomerManagement";
 import { CustomerView } from "@/components/CustomerView";
 import { Sidebar } from "@/components/Sidebar";
 import { DatePicker } from "@/components/DatePicker";
+import { Settings } from "@/components/Settings";
 import { useAuth } from "@/hooks/useAuth";
 
 const Dashboard = () => {
@@ -265,16 +266,7 @@ const Dashboard = () => {
         );
 
       case 'settings':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Settings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Settings module coming soon...</p>
-            </CardContent>
-          </Card>
-        );
+        return <Settings />;
 
       default:
         return null;

@@ -78,6 +78,36 @@ export type Database = {
         }
         Relationships: []
       }
+      settings: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          user_id: string
+          value: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          user_id: string
+          value?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          user_id?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       usage_data: {
         Row: {
           cost: number
