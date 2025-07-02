@@ -1,16 +1,18 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Calendar, Search, LogOut } from "lucide-react";
+import { Calendar, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getCustomers, fetchUsageData, saveLastSelection, getLastSelection } from "@/services/customerService";
 import { Customer, UsageDetail } from "@/types/customer";
 import { UsageTable } from "@/components/UsageTable";
 import { UsageSummary } from "@/components/UsageSummary";
 import { CustomerManagement } from "@/components/CustomerManagement";
+import { CustomerView } from "@/components/CustomerView";
+import { Sidebar } from "@/components/Sidebar";
+import { DatePicker } from "@/components/DatePicker";
 import { useAuth } from "@/hooks/useAuth";
 
 const Dashboard = () => {
@@ -24,7 +26,8 @@ const Dashboard = () => {
   const [totalMessages, setTotalMessages] = useState<number>(0);
   const [totalCost, setTotalCost] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
-  const [showCustomerManagement, setShowCustomerManagement] = useState<boolean>(false);
+  const [activeModule, setActiveModule] = useState<string>('usage');
+  const [viewingCustomerId, setViewingCustomerId] = useState<string | null>(null);
 
   // Load customers and last selection on component mount
   useEffect(() => {
@@ -146,7 +149,7 @@ const Dashboard = () => {
         row.date,
         row.creditType,
         row.quantity,
-        row.cost.toFixed(2)
+        row.cost.toFixed(4)
       ].join(','))
     ].join('\n');
 
@@ -166,119 +169,137 @@ const Dashboard = () => {
     });
   };
 
+  const renderContent = () => {
+    if (viewingCustomerId) {
+      return (
+        <CustomerView
+          customerId={viewingCustomerId}
+          onBack={() => setViewingCustomerId(null)}
+        />
+      );
+    }
+
+    switch (activeModule) {
+      case 'customers':
+        return (
+          <CustomerManagement
+            onCustomersChange={handleCustomersChange}
+            onViewCustomer={setViewingCustomerId}
+          />
+        );
+      
+      case 'usage':
+        return (
+          <div className="space-y-6">
+            {/* Controls */}
+            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-green-600" />
+                  Usage Query
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                  <div className="space-y-2">
+                    <Select value={selectedCustomer?.id || ''} onValueChange={(value) => {
+                      const customer = customers.find(c => c.id === value);
+                      setSelectedCustomer(customer || null);
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <DatePicker
+                    label="Start Date"
+                    value={startDate}
+                    onChange={setStartDate}
+                    placeholder="Select start date"
+                  />
+
+                  <DatePicker
+                    label="End Date"
+                    value={endDate}
+                    onChange={setEndDate}
+                    placeholder="Select end date"
+                  />
+
+                  <Button 
+                    onClick={handleFetchUsage} 
+                    disabled={loading}
+                    className="bg-green-600 hover:bg-green-700 text-white shadow-lg"
+                  >
+                    {loading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Loading...
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Search className="h-4 w-4" />
+                        Fetch Usage
+                      </div>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Summary Cards */}
+            {(totalMessages > 0 || totalCost > 0) && (
+              <UsageSummary totalMessages={totalMessages} totalCost={totalCost} />
+            )}
+
+            {/* Usage Table */}
+            <UsageTable data={usageData} onExportCSV={exportToCSV} />
+          </div>
+        );
+
+      case 'settings':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Settings module coming soon...</p>
+            </CardContent>
+          </Card>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex">
+      <Sidebar
+        activeModule={activeModule}
+        onModuleChange={setActiveModule}
+        onSignOut={handleSignOut}
+      />
+      
+      <div className="flex-1 lg:ml-64 p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
           <div className="text-center space-y-2">
             <h1 className="text-4xl font-bold text-slate-900">Credit Usage Dashboard</h1>
             <p className="text-slate-600">Welcome back, {user?.email}</p>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowCustomerManagement(!showCustomerManagement)}
-            >
-              {showCustomerManagement ? 'Hide' : 'Manage'} Customers
-            </Button>
-            <Button variant="outline" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
+
+          {/* Content */}
+          {renderContent()}
         </div>
-
-        {/* Customer Management */}
-        {showCustomerManagement && (
-          <CustomerManagement onCustomersChange={handleCustomersChange} />
-        )}
-
-        {/* Controls */}
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-green-600" />
-              Usage Query
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <div className="space-y-2">
-                <Label htmlFor="customer-select">Customer</Label>
-                <Select value={selectedCustomer?.id || ''} onValueChange={(value) => {
-                  const customer = customers.find(c => c.id === value);
-                  setSelectedCustomer(customer || null);
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="start-date">Start Date</Label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="start-date"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="end-date">End Date</Label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="end-date"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              <Button 
-                onClick={handleFetchUsage} 
-                disabled={loading}
-                className="bg-green-600 hover:bg-green-700 text-white shadow-lg"
-              >
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Loading...
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Search className="h-4 w-4" />
-                    Fetch Usage
-                  </div>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Summary Cards */}
-        {(totalMessages > 0 || totalCost > 0) && (
-          <UsageSummary totalMessages={totalMessages} totalCost={totalCost} />
-        )}
-
-        {/* Usage Table */}
-        <UsageTable data={usageData} onExportCSV={exportToCSV} />
       </div>
     </div>
   );

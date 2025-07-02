@@ -6,16 +6,18 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types/customer";
-import { Plus, Edit, Trash2, Users } from "lucide-react";
+import { Plus, Edit, Trash2, Users, Eye } from "lucide-react";
 
 interface CustomerManagementProps {
   onCustomersChange: (customers: Customer[]) => void;
+  onViewCustomer?: (customerId: string) => void;
 }
 
-export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProps) => {
+export const CustomerManagement = ({ onCustomersChange, onViewCustomer }: CustomerManagementProps) => {
   const { toast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,7 +26,12 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
   const [formData, setFormData] = useState({
     name: '',
     apiKey: '',
-    managedAccountId: ''
+    managedAccountId: '',
+    customerNumber: '',
+    plan: '',
+    email: '',
+    openingCredit: 0,
+    currentCredit: 0
   });
 
   useEffect(() => {
@@ -44,7 +51,12 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
         id: customer.id,
         name: customer.name,
         apiKey: customer.api_key,
-        managedAccountId: customer.managed_account_id
+        managedAccountId: customer.managed_account_id,
+        customerNumber: customer.customer_number,
+        plan: customer.plan,
+        email: customer.email,
+        openingCredit: customer.opening_credit,
+        currentCredit: customer.current_credit
       }));
 
       setCustomers(formattedCustomers);
@@ -70,6 +82,11 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
             name: formData.name,
             api_key: formData.apiKey,
             managed_account_id: formData.managedAccountId,
+            customer_number: formData.customerNumber || null,
+            plan: formData.plan || null,
+            email: formData.email || null,
+            opening_credit: formData.openingCredit,
+            current_credit: formData.currentCredit,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingCustomer.id);
@@ -87,6 +104,11 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
             name: formData.name,
             api_key: formData.apiKey,
             managed_account_id: formData.managedAccountId,
+            customer_number: formData.customerNumber || null,
+            plan: formData.plan || null,
+            email: formData.email || null,
+            opening_credit: formData.openingCredit,
+            current_credit: formData.currentCredit,
             user_id: (await supabase.auth.getUser()).data.user?.id
           });
 
@@ -100,7 +122,7 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
 
       setDialogOpen(false);
       setEditingCustomer(null);
-      setFormData({ name: '', apiKey: '', managedAccountId: '' });
+      resetForm();
       fetchCustomers();
     } catch (error: any) {
       toast({
@@ -113,12 +135,30 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      apiKey: '',
+      managedAccountId: '',
+      customerNumber: '',
+      plan: '',
+      email: '',
+      openingCredit: 0,
+      currentCredit: 0
+    });
+  };
+
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
     setFormData({
       name: customer.name,
       apiKey: customer.apiKey,
-      managedAccountId: customer.managedAccountId
+      managedAccountId: customer.managedAccountId,
+      customerNumber: customer.customerNumber || '',
+      plan: customer.plan || '',
+      email: customer.email || '',
+      openingCredit: customer.openingCredit || 0,
+      currentCredit: customer.currentCredit || 0
     });
     setDialogOpen(true);
   };
@@ -151,7 +191,7 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
 
   const openNewCustomerDialog = () => {
     setEditingCustomer(null);
-    setFormData({ name: '', apiKey: '', managedAccountId: '' });
+    resetForm();
     setDialogOpen(true);
   };
 
@@ -169,24 +209,81 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
               Add Customer
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Customer Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customerNumber">Customer Number</Label>
+                  <Input
+                    id="customerNumber"
+                    value={formData.customerNumber}
+                    onChange={(e) => setFormData({ ...formData, customerNumber: e.target.value })}
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="name">Customer Name</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="apiKey">API Key</Label>
+                <Label htmlFor="plan">Plan</Label>
+                <Select value={formData.plan} onValueChange={(value) => setFormData({ ...formData, plan: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Enterprise (USD)">Enterprise (USD)</SelectItem>
+                    <SelectItem value="Growth (USD+5%)">Growth (USD+5%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="openingCredit">Opening Credit</Label>
+                  <Input
+                    id="openingCredit"
+                    type="number"
+                    step="0.0001"
+                    value={formData.openingCredit}
+                    onChange={(e) => setFormData({ ...formData, openingCredit: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="currentCredit">Current Credit</Label>
+                  <Input
+                    id="currentCredit"
+                    type="number"
+                    step="0.0001"
+                    value={formData.currentCredit}
+                    onChange={(e) => setFormData({ ...formData, currentCredit: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="apiKey">API Key *</Label>
                 <Input
                   id="apiKey"
                   value={formData.apiKey}
@@ -195,7 +292,7 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="managedAccountId">Managed Account ID</Label>
+                <Label htmlFor="managedAccountId">Managed Account ID *</Label>
                 <Input
                   id="managedAccountId"
                   value={formData.managedAccountId}
@@ -221,8 +318,10 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>API Key</TableHead>
-                  <TableHead>Managed Account ID</TableHead>
+                  <TableHead>Customer #</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Current Credit</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -230,10 +329,21 @@ export const CustomerManagement = ({ onCustomersChange }: CustomerManagementProp
                 {customers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
-                    <TableCell className="font-mono text-sm">{customer.apiKey.substring(0, 20)}...</TableCell>
-                    <TableCell className="font-mono text-sm">{customer.managedAccountId}</TableCell>
+                    <TableCell>{customer.customerNumber || 'N/A'}</TableCell>
+                    <TableCell>{customer.plan || 'N/A'}</TableCell>
+                    <TableCell>{customer.email || 'N/A'}</TableCell>
+                    <TableCell>${customer.currentCredit?.toFixed(4) || '0.0000'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {onViewCustomer && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onViewCustomer(customer.id)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"

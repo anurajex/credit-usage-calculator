@@ -13,27 +13,42 @@ export type Database = {
         Row: {
           api_key: string
           created_at: string
+          current_credit: number | null
+          customer_number: string | null
+          email: string | null
           id: string
           managed_account_id: string
           name: string
+          opening_credit: number | null
+          plan: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           api_key: string
           created_at?: string
+          current_credit?: number | null
+          customer_number?: string | null
+          email?: string | null
           id?: string
           managed_account_id: string
           name: string
+          opening_credit?: number | null
+          plan?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           api_key?: string
           created_at?: string
+          current_credit?: number | null
+          customer_number?: string | null
+          email?: string | null
           id?: string
           managed_account_id?: string
           name?: string
+          opening_credit?: number | null
+          plan?: string | null
           updated_at?: string
           user_id?: string
         }

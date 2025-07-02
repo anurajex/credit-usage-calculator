@@ -15,7 +15,12 @@ export const getCustomers = async (): Promise<Customer[]> => {
       id: customer.id,
       name: customer.name,
       apiKey: customer.api_key,
-      managedAccountId: customer.managed_account_id
+      managedAccountId: customer.managed_account_id,
+      customerNumber: customer.customer_number,
+      plan: customer.plan,
+      email: customer.email,
+      openingCredit: customer.opening_credit,
+      currentCredit: customer.current_credit
     }));
   } catch (error) {
     console.error('Error fetching customers:', error);

@@ -1,9 +1,13 @@
-
 export interface Customer {
   id: string;
   name: string;
   apiKey: string;
   managedAccountId: string;
+  customerNumber?: string;
+  plan?: string;
+  email?: string;
+  openingCredit?: number;
+  currentCredit?: number;
 }
 
 export interface UsageDetail {
